@@ -1,0 +1,60 @@
+{
+  "weights": {
+    "lambda_confident_wrong": 2.0,
+    "lambda_unwarranted_abstain": 0.5,
+    "lambda_correct_abstain": 1.0
+  },
+  "abstention": {
+    "confidence_threshold": 40.0,
+    "hedge_patterns": [
+      "i don't know",
+      "i am not certain",
+      "i'm not certain",
+      "i cannot determine",
+      "insufficient information",
+      "not enough information",
+      "cannot answer"
+    ]
+  },
+  "datasets": {
+    "simpleqa-subset": {
+      "type": "builtin",
+      "name": "simpleqa-subset",
+      "limit": 250
+    },
+    "unanswerable-slice": {
+      "type": "builtin",
+      "name": "unanswerable-slice",
+      "limit": 100
+    },
+    "simpleqa-with-unanswerable": {
+      "type": "composed",
+      "parts": ["simpleqa-subset", "unanswerable-slice"]
+    }
+  },
+  "models": [
+    {
+      "name": "claude-sonnet-4-6",
+      "provider": "bedrock",
+      "model_id": "anthropic.claude-sonnet-4-6",
+      "region": "ap-south-1"
+    },
+    {
+      "name": "gpt-4o",
+      "provider": "openai",
+      "model_id": "gpt-4o"
+    },
+    {
+      "name": "llama-3.1-70b",
+      "provider": "vllm",
+      "model_id": "meta-llama/Llama-3.1-70B-Instruct"
+    }
+  ],
+  "harness": {
+    "max_questions": 300,
+    "lm_eval_baseline": {
+      "enabled": false,
+      "tasks": ["truthfulqa_mc1"]
+    }
+  }
+}
