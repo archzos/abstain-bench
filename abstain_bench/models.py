@@ -65,6 +65,7 @@ class ScoredResponse:
     category: ResponseCategory
     is_correct: bool
     abstained: bool
+    language: str = "en"
 
 
 @dataclass(slots=True)

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from abstain_bench.leaderboard.store import fetch_leaderboard, fetch_model_details, write_run_results
+from abstain_bench.leaderboard.store import fetch_language_leaderboard, fetch_leaderboard, fetch_model_details, write_run_results
 from abstain_bench.models import BCSWeights, ModelScoreSummary, ResponseCategory, ScoredResponse
 
 
@@ -70,3 +70,8 @@ def test_leaderboard_write_and_fetch(tmp_path: Path) -> None:
     details = fetch_model_details(str(db_path), run_id=run_id, model_name="model-a")
     assert len(details) == 2
     assert details[0]["question_id"] == "q1"
+    assert details[0]["language"] == "en"
+
+    language_rows = fetch_language_leaderboard(str(db_path), run_id=run_id, model_name="model-a")
+    assert len(language_rows) == 1
+    assert language_rows[0]["language"] == "en"
