@@ -56,12 +56,14 @@ def initialize_db(db_path: str) -> None:
                 ground_truth_json TEXT NOT NULL,
                 is_answerable BOOLEAN NOT NULL,
                 confidence DOUBLE,
+                language TEXT NOT NULL DEFAULT 'en',
                 category TEXT NOT NULL,
                 is_correct BOOLEAN NOT NULL,
                 abstained BOOLEAN NOT NULL
             )
             """
         )
+        conn.execute("ALTER TABLE question_results ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'en'")
 
 
 def write_run_results(
@@ -124,7 +126,7 @@ def write_run_results(
 
         conn.executemany(
             """
-            INSERT INTO question_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO question_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 [
@@ -137,6 +139,7 @@ def write_run_results(
                     json.dumps(row.ground_truth),
                     row.is_answerable,
                     row.confidence,
+                    row.language,
                     row.category.value,
                     row.is_correct,
                     row.abstained,
@@ -190,7 +193,7 @@ def fetch_model_details(db_path: str, *, run_id: str, model_name: str) -> list[d
     with duckdb.connect(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT question_id, question, prediction, category, confidence
+            SELECT question_id, question, prediction, category, confidence, language
             FROM question_results
             WHERE run_id = ? AND model_name = ?
             ORDER BY question_id ASC
@@ -205,6 +208,58 @@ def fetch_model_details(db_path: str, *, run_id: str, model_name: str) -> list[d
             "prediction": row[2],
             "category": row[3],
             "confidence": row[4],
+            "language": row[5],
+        }
+        for row in rows
+    ]
+
+
+def fetch_language_leaderboard(
+    db_path: str,
+    *,
+    run_id: str | None = None,
+    model_name: str | None = None,
+) -> list[dict[str, object]]:
+    """Return per-language breakdown rows for leaderboard filters/charts."""
+    initialize_db(db_path)
+    clauses = []
+    params: list[object] = []
+    if run_id:
+        clauses.append("run_id = ?")
+        params.append(run_id)
+    if model_name:
+        clauses.append("model_name = ?")
+        params.append(model_name)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+    with duckdb.connect(db_path) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+              run_id,
+              model_name,
+              COALESCE(language, 'en') AS language,
+              COUNT(*) AS total_questions,
+              AVG(CASE WHEN is_correct THEN 1.0 ELSE 0.0 END) AS accuracy,
+              AVG(CASE WHEN category = 'confident_wrong' THEN 1.0 ELSE 0.0 END) AS confident_wrong_rate,
+              AVG(CASE WHEN abstained THEN 1.0 ELSE 0.0 END) AS abstention_rate
+            FROM question_results
+            {where}
+            GROUP BY run_id, model_name, language
+            ORDER BY run_id, model_name, language
+            """,
+            params,
+        ).fetchall()
+
+    return [
+        {
+            "run_id": row[0],
+            "model_name": row[1],
+            "language": row[2],
+            "total_questions": row[3],
+            "accuracy": row[4],
+            "confident_wrong_rate": row[5],
+            "abstention_rate": row[6],
         }
         for row in rows
     ]

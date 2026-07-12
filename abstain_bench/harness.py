@@ -156,6 +156,7 @@ def run_benchmark(
                 category=category,
                 is_correct=is_correct,
                 abstained=abstention.is_abstention,
+                language=str(question.metadata.get("language", "en")),
             )
             per_model_rows.append(row)
 
